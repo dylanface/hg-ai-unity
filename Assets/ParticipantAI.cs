@@ -16,11 +16,11 @@ public class ParticipantAI : MonoBehaviour
     public float timeBetweenAttacks;
     bool attackReady;
 
-    public float sightrange, attackRange;
-    public bool targetInSightRange, targetInAttackRange;
+    public float sightRange, attackRange;
+    public Collider[] targetInSightRange, targetInAttackRange;
 
     private void Awake() {
-        target = GameObject.Find("Player").transform;
+        target = GameObject.FindGameObjectWithTag("Player").transform;
         agent = GetComponent<NavMeshAgent>();
     }
 
@@ -34,12 +34,36 @@ public class ParticipantAI : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
-        targetInSightRange = Physics.CheckSphere(transform.position, sightrange, whatIsTarget);
-        targetInAttackRange = Physics.CheckSphere(transform.position, attackRange, whatIsTarget);
+        Collider sightHit, attackHit;
+        bool sightArrayLength, attackArrayLength;
 
-        if (!targetInSightRange && !targetInAttackRange) Patroling();
-        else if (targetInSightRange && !targetInAttackRange) Chasing();
-        else if (targetInAttackRange && targetInSightRange) Attacking();
+        targetInSightRange = Physics.OverlapSphere(transform.position, sightRange, whatIsTarget);
+        sightArrayLength = targetInSightRange.Length > 1;
+        for(int i = 0; i < targetInSightRange.Length; i++)
+            {
+                if(targetInSightRange[i].gameObject.name != transform.name)
+                {
+                    sightHit = targetInSightRange[i]; 
+        target = sightHit.transform;
+                }
+            }
+
+        targetInAttackRange = Physics.OverlapSphere(transform.position, attackRange, whatIsTarget);
+        attackArrayLength = targetInAttackRange.Length > 1;
+        for(int i = 0; i < targetInAttackRange.Length; i++)
+            {
+                if(targetInSightRange[i].gameObject.name != transform.name)
+                {
+                    attackHit = targetInAttackRange[i]; 
+        target = attackHit.transform;
+                }
+            }
+
+
+
+        if (!sightArrayLength && !attackArrayLength) Patroling();
+        else if (sightArrayLength && !attackArrayLength) Chasing();
+        else if (sightArrayLength && attackArrayLength) Attacking();
         
     }
 
@@ -69,6 +93,25 @@ public class ParticipantAI : MonoBehaviour
 
     private void Attacking()
     {
-        agent.SetDestination(transform.position);
+        agent.SetDestination(target.position);
+
+        transform.LookAt(target);
+
+        if (!attackReady)
+        {
+            Health h = target.GetComponent<Health>();
+            if (h != null)
+            {
+                h.currentHealth -= 10f * Time.deltaTime;
+            }
+
+            attackReady = true;
+            Invoke(nameof(ResetAttack), timeBetweenAttacks);
+        }
+    }
+
+    private void ResetAttack()
+    {
+        attackReady = false;
     }
 }
